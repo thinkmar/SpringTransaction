@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+         http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+         http://www.springframework.org/schema/context
+         http://www.springframework.org/schema/context/spring-context-3.0.xsd
+         http://www.springframework.org/schema/tx
+         http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+         http://www.springframework.org/schema/aop
+         http://www.springframework.org/schema/aop/spring-aop-3.0.xsd">
+
+    <!--声明式事务管理 基于TransactionProxyFactoryBean-->
+
+    <!-- 引入外部属性文件 -->
+    <context:property-placeholder location="classpath:jdbc.properties"></context:property-placeholder>
+
+    <!-- 配置C3P0连接池 -->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="driverClass" value="${jdbc.driverClass}"></property>
+        <property name="jdbcUrl" value="${jdbc.url}"></property>
+        <property name="user" value="${jdbc.username}"></property>
+        <property name="password" value="${jdbc.password}"></property>
+    </bean>
+
+    <!--配置业务层-->
+    <bean id="accountService" class="net.thinkmar.proxyfactorybean.service.impl.AccountServiceImpl">
+        <property name="accountDao" ref="accountDao"></property>
+    </bean>
+
+    <!--配置DAO层-->
+    <bean id="accountDao" class="net.thinkmar.proxyfactorybean.dao.impl.AccountDaoImpl">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    <!--配置事务管理器:事务管理器通过设置自动提交属性来控制事务的提交，需要获取到连接（配置dataSource属性）-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    <!--配置业务层代理-->
+    <bean id="accountServiceProxy" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+        <!--配置目标对象-->
+        <property name="target" ref="accountService"></property>
+        <!--注入事务管理器-->
+        <property name="transactionManager" ref="transactionManager"></property>
+        <!--注入事务属性-->
+        <property name="transactionAttributes">
+            <props>
+                <!--
+                    prop的格式
+                        * PROPAGATION   ：事务的传播行为
+                        * ISOLATION     ：事务的隔离级别
+                        * readOnly      ：只读(事务不能进行修改、插入、删除操作)(readOnly)
+                        * -Exception    ：回滚事务对应的异常
+                        * +Exception    ：发生哪些异常事务不回滚(+java.lang.ArithmeticException)
+                -->
+                <!--
+                    prop针对方法过滤
+                    <prop key="save*">PROPAGATION_REQUIRED</prop>
+                -->
+                <prop key="*">PROPAGATION_REQUIRED</prop>
+                <!--<prop key="transfer">PROPAGATION_REQUIRED,+java.lang.ArithmeticException</prop>-->
+            </props>
+        </property>
+    </bean>
+</beans>
